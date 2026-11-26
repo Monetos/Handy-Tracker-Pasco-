@@ -1,5 +1,5 @@
 // Offline-Cache: immer zuerst frisch aus dem Netz (damit Updates sofort ankommen), ohne Netz aus dem Cache.
-const CACHE = 'handy-tracker-v3';
+const CACHE = 'handy-tracker-v4';
 const FILES = ['./', 'index.html', 'buch.js', 'version.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(

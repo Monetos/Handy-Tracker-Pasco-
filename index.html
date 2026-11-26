@@ -276,6 +276,7 @@
     <p class="hint"><b>Reichweite:</b> Das Magnetfeld eines Handys (Lautsprecher, Lade-Magnete) fällt sehr schnell ab – realistisch sind etwa 5–15 cm. Der Sensor reagiert genauso auf andere Magnete und auf Stahl.</p>
     <p class="hint">Unterstützt wird der kabellose PASCO-Sensor PS-3221 (3-Achsen). Chrome auf Android nötig; Bluetooth und ggf. Standort müssen eingeschaltet sein.</p>
     <p class="hint"><b>Ohne PASCO-Sensor:</b> Über „Handy-Sensor“ misst das Magnetometer dieses Handys. Dafür einmalig in Chrome <i>chrome://flags/#enable-generic-sensor-extra-classes</i> auf „Enabled“ stellen. Das eigene Handy dann flach und langsam über Taschen oder Bänke führen – Reichweite nur wenige Zentimeter.</p>
+    <div class="row"><button class="big" id="diagCopy">Diagnose kopieren</button></div>
     <pre id="diag">Noch keine Daten.</pre>
   </div>
 </details>
@@ -414,9 +415,10 @@ const UUID = (svc, chr) => `4a5c000${svc}-000${chr}-0000-0000-5c1e741f1c00`;
 const diagLines = [];
 function diag(msg) {
   diagLines.push(new Date().toLocaleTimeString('de-DE') + ' ' + msg);
-  if (diagLines.length > 40) diagLines.shift();
+  if (diagLines.length > 80) diagLines.shift();
   $('diag').textContent = diagLines.join('\n');
 }
+const short = u => u.slice(4, 8) + '-' + u.slice(9, 13);   // z. B. 0001-0003 = Dienst 1, Kanal 3
 const hex = dv => Array.from(new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength), b => b.toString(16).padStart(2, '0')).join(' ');
 
 const pasco = {
@@ -424,7 +426,7 @@ const pasco = {
   async start(all) {
     if (!navigator.bluetooth) throw new Error('Dieser Browser kann kein Web Bluetooth. Bitte Chrome auf Android benutzen.');
     const opts = all ? { acceptAllDevices: true } : { filters: [{ namePrefix: 'Mag Field' }] };
-    opts.optionalServices = [UUID(0, 0), UUID(1, 0), UUID(2, 0)];
+    opts.optionalServices = [UUID(0, 0), UUID(1, 0), UUID(2, 0), UUID(3, 0), 'battery_service', 'device_information'];
     this.dev = await navigator.bluetooth.requestDevice(opts);
     this.dev.addEventListener('gattserverdisconnected', () => this.onLost());
     this.wanted = true;
@@ -434,23 +436,28 @@ const pasco = {
   async open() {
     diag('Verbinde mit ' + (this.dev.name || '?') + ' …');
     const gatt = await this.dev.gatt.connect();
-    // Geräte-Kanal (Dienst 0): Benachrichtigungen aktivieren, falls vorhanden
-    try {
-      const s0 = await gatt.getPrimaryService(UUID(0, 0));
-      const c0 = await s0.getCharacteristic(UUID(0, 3));
-      await c0.startNotifications();
-    } catch (e) { diag('Dienst 0 übersprungen: ' + e.message); }
-    const svc = await gatt.getPrimaryService(UUID(1, 0));
-    this.tx = await svc.getCharacteristic(UUID(1, 2));
-    this.rx = await svc.getCharacteristic(UUID(1, 3));
-    this.rx.addEventListener('characteristicvaluechanged', e => this.onData(e.target.value));
-    await this.rx.startNotifications();
-    this.rawLogged = 0;
-    diag('Verbunden, starte Messung.');
+    // Wie PASCOs eigene Software: Benachrichtigungen auf ALLEN Kanälen einschalten – je nach Firmware
+    // kommt die Antwort nicht zwingend auf dem erwarteten Kanal zurück.
+    this.tx = null; let subs = 0;
+    for (const svc of await gatt.getPrimaryServices()) {
+      for (const c of await svc.getCharacteristics()) {
+        const pr = c.properties, id = short(c.uuid);
+        diag(`Kanal ${id}: ${['write', 'writeWithoutResponse', 'notify', 'indicate', 'read'].filter(k => pr[k]).join(', ') || '–'}`);
+        if (c.uuid === UUID(1, 2)) this.tx = c;
+        if (pr.notify || pr.indicate) {
+          try { c.addEventListener('characteristicvaluechanged', e => this.onData(e.target.value, id)); await c.startNotifications(); subs++; }
+          catch (e) { diag(`Kanal ${id}: Benachrichtigung nicht möglich (${e.message})`); }
+        }
+      }
+    }
+    if (!this.tx) throw new Error('Der Mess-Kanal des Sensors wurde nicht gefunden (siehe Diagnose).');
+    this.rawLogged = 0; this.lastRx = ''; this.withResponse = !!this.tx.properties.write;
+    diag(`Verbunden, ${subs} Kanäle abonniert, starte Messung.`);
     this.loop();
   },
-  onData(dv) {
-    if (this.rawLogged < 5) { diag('RX ' + hex(dv)); this.rawLogged++; }
+  onData(dv, id) {
+    if (this.rawLogged < 12) { diag(`RX ${id}: ${hex(dv)}`); this.rawLogged++; }
+    this.lastRx = `${id}: ${hex(dv)}`;
     // Antwort auf Einzelmessung: C0 00 05 | x y z (je int16 LE, 0,15 µT pro Schritt im ±50-G-Bereich)
     if (dv.byteLength >= 9 && dv.getUint8(0) === 0xC0 && dv.getUint8(1) === 0 && dv.getUint8(2) === 0x05) {
       onSample(dv.getInt16(3, true) * 0.15, dv.getInt16(5, true) * 0.15, dv.getInt16(7, true) * 0.15);
@@ -460,16 +467,22 @@ const pasco = {
   async loop() {
     const my = this.loopId = (this.loopId || 0) + 1;
     const cmd = Uint8Array.of(0x05, 6);   // GCMD_READ_ONE_SAMPLE, 6 Datenbytes
-    let misses = 0;
+    let misses = 0, ok = false, errLogged = 0;
     while (this.wanted && my === this.loopId && this.dev.gatt.connected) {
       const t0 = performance.now();
       try {
         const got = new Promise(res => { this.pending = res; setTimeout(() => res(false), 500); });
-        if (this.tx.properties.write) await this.tx.writeValueWithResponse(cmd);
+        if (this.withResponse) await this.tx.writeValueWithResponse(cmd);
         else await this.tx.writeValueWithoutResponse(cmd);
-        if (await got) misses = 0;
-        else if (++misses === 6) { diag('Sensor antwortet nicht auf Messanfragen.'); banner('Verbunden, aber der Sensor liefert keine Messwerte. Details unter „Hilfe & Diagnose“.'); }
-      } catch (e) { diag('Schreibfehler: ' + e.message); await sleep(300); }
+        if (await got) { if (!ok) { ok = true; banner(''); diag('Messwerte kommen an.'); } misses = 0; }
+        else if (!ok && ++misses % 6 === 0) {
+          // Andere Schreibart probieren, falls der Sensor beide anbietet
+          const pr = this.tx.properties;
+          if (pr.write && pr.writeWithoutResponse) { this.withResponse = !this.withResponse; diag('Keine Antwort – wechsle Schreibart auf ' + (this.withResponse ? 'mit' : 'ohne') + ' Bestätigung.'); }
+          else diag('Sensor antwortet nicht auf Messanfragen.');
+          banner('Verbunden, aber der Sensor liefert keine verwertbaren Messwerte. Bitte unter „Mehr → Hilfe & Diagnose“ auf „Diagnose kopieren“ tippen und den Text weitergeben.' + (this.lastRx ? ' Letzte Antwort: ' + this.lastRx : ' Bisher kam gar keine Antwort.'));
+        }
+      } catch (e) { if (errLogged++ < 5) diag('Schreibfehler: ' + e.message); await sleep(300); }
       await sleep(Math.max(0, 50 - (performance.now() - t0)));   // ~20 Hz
     }
   },
@@ -632,7 +645,8 @@ function draw(ts) {
   // Texte
   $('val').textContent = live ? fmt(S.sig, S.sig < 100 ? 1 : 0) : '–';
   let st = 'Bereit';
-  if (S.running && S.calib) st = 'Nulle … ruhig halten';
+  if (S.running && !S.cur) st = 'Warte auf Messwerte …';
+  else if (S.running && S.calib) st = 'Nulle … ruhig halten';
   else if (live) st = S.sig < cfg.thr * 0.4 ? 'Alles ruhig' : S.sig < cfg.thr ? 'Da ist was …' : S.sig < cfg.thr * 4 ? 'Fund! Ganz nah dran' : 'Volltreffer!';
   $('state').textContent = st;
   $('sPeak').textContent = live ? fmt(S.peak) : '–';
@@ -713,6 +727,11 @@ bind('source', 'source', null, () => { if (S.running) stop(); showSource(); });
 document.querySelectorAll('#srcSeg button').forEach(b => b.onclick = () => { if (S.running) stop(); cfg.source = b.dataset.src; saveCfg(); banner(''); showSource(); });
 showSource();
 
+$('diagCopy').onclick = async () => {
+  const text = `Handy-Tracker ${typeof APP_VERSION === 'string' ? APP_VERSION : '?'} · ${navigator.userAgent}\n` + diagLines.join('\n');
+  try { if (navigator.share) await navigator.share({ title: 'Handy-Tracker Diagnose', text }); else { await navigator.clipboard.writeText(text); alert('Diagnose in die Zwischenablage kopiert.'); } }
+  catch (e) { if (e.name !== 'AbortError') { try { await navigator.clipboard.writeText(text); alert('Diagnose in die Zwischenablage kopiert.'); } catch { alert(text); } } }
+};
 $('connect').onclick = () => S.running ? stop() : start();
 $('zero').onclick = () => { audio.unlock(); startZero(); };
 const showMute = () => { $('mute').textContent = cfg.muted ? '🔇' : '🔊'; };
