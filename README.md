@@ -19,7 +19,10 @@ In Chrome auf dem Handy öffnen → Menü ⋮ → **„App installieren“**. Da
 
 1. PASCO-Sensor einschalten, in der App **Sensor verbinden** → „Mag Field …“ auswählen.
 2. Sensor frei in die Luft halten, **Nullen** tippen.
-3. Langsam an Taschen, Bänken, Jacken entlangführen. Je näher, desto schneller das Ticken; über der Alarmschwelle gibt es Fanfare, Vibration und einen Eintrag in der Fundliste.
+3. Langsam an Taschen, Bänken, Jacken entlangführen. Je näher, desto schneller der Suchton; über dem Schwellenwert („Erfolgssound ab … µT“, direkt auf der Tracker-Seite einstellbar) gibt es Erfolgssound und Vibration.
+4. Handy eingesammelt? **„📷 Handy eingesammelt“** öffnet sofort die Kamera; danach Name, Klasse und Notiz ergänzen – der Eintrag landet im Buch.
+
+Die App wertet den **Betrag** des 3-Achsen-Feldes aus. Weil jede Achse einen Nullpunkt-Fehler hat, ändert sich der Betrag trotzdem beim Drehen; die **Dreh-Kalibrierung** (Mehr → Einstellungen) gleicht das aus.
 
 Betriebsarten: **Suchen** (Sensor wird bewegt, drehunabhängig) und **Wache** (Sensor liegt still, z. B. an einer Ablage – empfindlicher).
 Ohne Sensor lässt sich alles über *Einstellungen → Datenquelle → Demo* ausprobieren.

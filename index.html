@@ -60,12 +60,6 @@
   .check { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 15px; }
   .check input { width: 22px; height: 22px; accent-color: var(--acc); }
   .hint { font-size: 12.5px; color: var(--dim); line-height: 1.45; margin: 8px 0 0; }
-  #finds { list-style: none; margin: 0; padding: 0; }
-  #finds li { display: flex; gap: 10px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
-  #finds li:first-child { border-top: 0; }
-  #finds time { color: var(--dim); font-variant-numeric: tabular-nums; }
-  #finds .pk { font-weight: 700; margin-left: auto; font-variant-numeric: tabular-nums; }
-  #finds .note { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .link { background: none; border: 0; color: var(--acc); font-size: 14px; padding: 8px 0; margin-right: 16px; }
   pre { font-size: 11px; color: var(--dim); white-space: pre-wrap; word-break: break-all; max-height: 180px; overflow: auto;
     background: #050d0a; padding: 8px; border-radius: 8px; margin: 8px 0 0; }
@@ -116,6 +110,12 @@
   #update { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #06301f; border: 1px solid var(--acc); font-size: 14px; }
   #update button { margin-top: 8px; width: 100%; min-height: 44px; border-radius: 10px; border: 0; background: var(--acc); color: #04150d; font-weight: 700; font-size: 15px; }
   progress { width: 100%; accent-color: var(--acc); margin-top: 10px; }
+  .comp { margin-top: 8px; text-align: center; font-size: 12.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .thrbox { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13.5px; color: var(--dim); }
+  .thrbox label { white-space: nowrap; } .thrbox input[type=range] { flex: 1; min-width: 0; }
+  .thrbox input[type=number] { width: 74px; padding: 8px; border-radius: 10px; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); font-size: 16px; text-align: right; }
+  button.big.quick { border-color: var(--acc); color: var(--acc); background: #06301f; }
 </style>
 </head>
 <body>
@@ -142,10 +142,18 @@
 <div class="stats">
   <div class="stat"><b id="sPeak">–</b><small>Spitze (µT)</small></div>
   <div class="stat"><b id="sBase">–</b><small>Grundfeld (µT)</small></div>
-  <div class="stat"><b id="sFinds">0</b><small>Funde</small></div>
+  <div class="stat"><b id="sFinds">0</b><small>heute eingezogen</small></div>
 </div>
 
+<div id="comp" class="comp">Bx – · By – · Bz – · |B| –</div>
+
 <canvas id="graph"></canvas>
+
+<div class="thrbox">
+  <label for="thr">Erfolgssound ab</label>
+  <input id="thr" type="range" min="1" max="150" step="1" aria-label="Schwellenwert">
+  <input id="thrNum" type="number" min="0.5" max="5000" step="0.5" inputmode="decimal" aria-label="Schwellenwert in Mikrotesla"><span>µT</span>
+</div>
 
 <div class="seg" id="srcSeg">
   <button data-src="pasco">PASCO-Sensor</button>
@@ -158,16 +166,7 @@
   <button id="zero" class="big" disabled>Nullen</button>
 </div>
 
-<details id="dFinds">
-  <summary>Fundliste</summary>
-  <div class="body">
-    <ul id="finds"></ul>
-    <p id="noFinds" class="hint">Noch keine Funde. Ein Fund wird gespeichert, sobald das Signal die Alarmschwelle überschreitet. Antippen, um eine Notiz (z. B. Raum) zu ergänzen.</p>
-    <button class="link" id="csv">CSV exportieren</button>
-    <button class="link" id="clear">Liste leeren</button>
-  </div>
-</details>
-
+<div class="row"><button id="quick" class="big quick">📷 Handy eingesammelt – Foto &amp; Eintrag</button></div>
 </section>
 
 <section id="tab-einzug" class="tab" hidden>
@@ -231,10 +230,7 @@
 <details id="dSettings">
   <summary>Einstellungen</summary>
   <div class="body">
-    <label class="f">Alarmschwelle <output id="oThr"></output>
-      <input id="thr" type="range" min="1" max="100" step="1">
-    </label>
-    <p class="hint">Kleiner = empfindlicher, aber mehr Fehlalarme (Stahl in Tischen, Federmäppchen-Magnete, Kopfhörer).</p>
+    <p class="hint">Den Schwellenwert für den Erfolgssound stellst du direkt auf der Tracker-Seite ein. Kleiner = empfindlicher, aber mehr Fehlalarme (Stahl in Tischen, Federmäppchen-Magnete, Kopfhörer).</p>
 
     <label class="f">Betriebsart
       <select id="mode">
@@ -249,14 +245,36 @@
         <option value="geiger">Geigerzähler</option>
         <option value="detector">Metalldetektor</option>
         <option value="sonar">U-Boot-Sonar</option>
-        <option value="off">Nur Alarm</option>
+        <option value="park">Einparkhilfe</option>
+        <option value="theremin">Theremin</option>
+        <option value="laser">Laser-Scanner</option>
+        <option value="herz">Herzschlag</option>
+        <option value="bit">8-Bit-Melodie</option>
+        <option value="off">Kein Suchton</option>
       </select>
     </label>
+    <button class="link" id="trySound">▶ Suchton anhören</button>
+    <label class="f">Erfolgssound (beim Überschreiten des Schwellenwerts)
+      <select id="win">
+        <option value="fanfare">Fanfare</option>
+        <option value="coin">Münze</option>
+        <option value="levelup">Level-Up</option>
+        <option value="tada">Tusch</option>
+        <option value="sirene">Sirene</option>
+        <option value="jackpot">Jackpot</option>
+        <option value="off">Kein Erfolgssound</option>
+      </select>
+    </label>
+    <button class="link" id="tryWin">▶ Erfolgssound anhören</button>
     <label class="f">Lautstärke <output id="oVol"></output>
       <input id="vol" type="range" min="0" max="100" step="5">
     </label>
-    <label class="check"><input id="fanfare" type="checkbox"> Fanfare bei Fund</label>
-    <label class="check"><input id="vib" type="checkbox"> Vibration bei Fund</label>
+    <label class="check"><input id="vib" type="checkbox"> Vibration beim Erfolgssound</label>
+
+    <label class="f">Dreh-Kalibrierung des Sensors</label>
+    <p class="hint">Gleicht den Nullpunkt-Fehler der drei Achsen aus, damit sich die Anzeige beim bloßen Drehen des Sensors kaum noch ändert. Sensor verbinden, weit weg von Magneten und Metall halten, starten und ihn 12 Sekunden lang langsam in alle Richtungen drehen. <span id="rotState"></span></p>
+    <button class="link" id="rotCal">Dreh-Kalibrierung starten</button>
+    <button class="link" id="rotReset">Zurücksetzen</button>
 
     <label class="f">Datenquelle
       <select id="source">
@@ -327,10 +345,11 @@ const store = {
 };
 
 // ---------- Zustand ----------
-const cfg = Object.assign({ thr: 8, mode: 'move', auto: true, sound: 'geiger', vol: 70, fanfare: true, vib: true, source: 'pasco', muted: false },
+const cfg = Object.assign({ thr: 8, mode: 'move', auto: true, sound: 'geiger', win: 'fanfare', vol: 70, vib: true, offsets: {}, source: 'pasco', muted: false },
   store.get('ht.cfg', {}));
 const saveCfg = () => store.set('ht.cfg', cfg);
-let finds = store.get('ht.finds', []);
+if (cfg.fanfare === false) { cfg.win = 'off'; } delete cfg.fanfare;   // alte Einstellung übernehmen
+try { localStorage.removeItem('ht.finds'); } catch {}
 
 const S = {
   running: false, name: '',
@@ -352,6 +371,13 @@ function onSample(x, y, z) {
   const dt = S.lastT ? Math.min(0.5, (now - S.lastT) / 1000) : 0.05;
   if (S.lastT) S.rate += (1 / Math.max(dt, 0.001) - S.rate) * 0.1;
   S.lastT = now;
+  S.raw = [x, y, z];
+  if (S.rot) {                                   // Dreh-Kalibrierung: Extremwerte je Achse sammeln
+    S.raw.forEach((v, i) => { S.rot.min[i] = Math.min(S.rot.min[i], v); S.rot.max[i] = Math.max(S.rot.max[i], v); });
+    if (now > S.rot.until) finishRot();
+  }
+  const off = cfg.offsets[S.name];               // Nullpunkt-Fehler der Achsen abziehen
+  if (off) { x -= off[0]; y -= off[1]; z -= off[2]; }
   S.cur = [x, y, z];
 
   if (S.calib) {
@@ -380,6 +406,19 @@ function onSample(x, y, z) {
   trackEvent(now);
 }
 
+// Dreh-Kalibrierung: Beim Drehen im reinen Erdfeld pendelt jede Achse zwischen −B und +B um ihren Nullpunkt-Fehler.
+// Der Mittelwert aus Minimum und Maximum ist also genau dieser Fehler.
+function startRot() { S.rot = { min: [1e9, 1e9, 1e9], max: [-1e9, -1e9, -1e9], until: performance.now() + 12000 }; }
+function finishRot() {
+  const r = S.rot; S.rot = null;
+  const span = r.max.map((m, i) => m - r.min[i]);
+  if (Math.min(...span) < 30) { alert('Der Sensor wurde nicht in alle Richtungen gedreht (Spannweiten: ' + span.map(v => fmt(v, 0)).join(' / ') + ' µT, nötig sind etwa 60–100). Bitte wiederholen.'); return; }
+  cfg.offsets[S.name] = r.max.map((m, i) => +((m + r.min[i]) / 2).toFixed(2)); saveCfg(); showRot();
+  blip(880, 0.1); startZero();
+  alert('Kalibriert. Nullpunkt-Korrektur: ' + cfg.offsets[S.name].map(v => fmt(v)).join(' / ') + ' µT. Jetzt Sensor ruhig halten – es wird neu genullt.');
+}
+function showRot() { const o = cfg.offsets[S.name]; $('rotState').textContent = !S.running ? '' : o ? `Aktuell für „${S.name}“: ${o.map(v => fmt(v)).join(' / ')} µT.` : `Für „${S.name}“ noch nicht kalibriert.`; }
+
 function startZero() { S.calib = []; S.calibT = performance.now(); S.event = null; setAlarm(false); }
 function finishZero() {
   const n = S.calib.length, b = [0, 0, 0];
@@ -394,7 +433,7 @@ function trackEvent(now) {
     if (S.sig >= cfg.thr) {
       S.event = { t: Date.now(), start: now, peak: S.sig, below: 0 };
       setAlarm(true);
-      if (cfg.fanfare) fanfare();
+      winSound();
       if (cfg.vib && navigator.vibrate) navigator.vibrate([120, 60, 120, 60, 300]);
     }
     return;
@@ -403,8 +442,6 @@ function trackEvent(now) {
   if (S.sig > e.peak) e.peak = S.sig;
   if (S.sig < cfg.thr * 0.6) { if (!e.below) e.below = now; } else e.below = 0;
   if (e.below && now - e.below > 1000) {
-    finds.unshift({ t: e.t, peak: +e.peak.toFixed(1), dur: +((e.below - e.start) / 1000).toFixed(1), note: '' });
-    finds = finds.slice(0, 200); store.set('ht.finds', finds); renderFinds();
     S.event = null; setAlarm(false);
   }
 }
@@ -548,14 +585,14 @@ async function start() {
     return;
   }
   S.running = true; S.base = null; S.calib = null; S.lastT = 0;
-  setChip(S.name, 'on');
+  setChip(S.name, 'on'); showRot();
   $('connect').textContent = 'Trennen'; $('connect').classList.remove('primary');
   $('zero').disabled = false;
   wake.on();
 }
 function stop(reason) {
   if (active) active.stop();
-  active = null; S.running = false; S.event = null; S.level = 0; S.sig = 0; S.cur = null;
+  active = null; S.running = false; S.event = null; S.rot = null; S.raw = null; S.level = 0; S.sig = 0; S.cur = null;
   setAlarm(false);
   setChip(reason || 'Nicht verbunden', reason ? 'err' : '');
   $('connect').textContent = startLabel(); $('connect').classList.add('primary');
@@ -606,11 +643,17 @@ const audio = {
   // wird ~40x pro Sekunde aufgerufen
   update() {
     if (!this.ctx) return;
-    const t = this.ctx.currentTime, lv = S.running && S.base ? S.level : 0, style = cfg.sound;
-    const det = style === 'detector' && lv > 0.04;
-    this.oscGain.gain.setTargetAtTime(det ? 0.05 + 0.25 * lv : 0, t, 0.04);
-    if (det) this.osc.frequency.setTargetAtTime(160 + 1500 * lv * lv, t, 0.04);
-    if (!S.running || !S.base || t < this.nextTick) return;
+    const t = this.ctx.currentTime, style = cfg.sound;
+    // Hörprobe: Signal 4 s lang von 0 auf voll und zurück fahren
+    const pv = this.previewUntil > t ? Math.sin(Math.PI * (1 - (this.previewUntil - t) / 4)) : -1;
+    const on = pv >= 0 || (S.running && S.base), lv = pv >= 0 ? pv : on ? S.level : 0;
+    const cont = (style === 'detector' || style === 'theremin') && lv > 0.04;       // Dauertöne
+    this.osc.type = style === 'theremin' ? 'sine' : 'triangle';
+    this.oscGain.gain.setTargetAtTime(cont ? 0.05 + 0.25 * lv : 0, t, 0.04);
+    if (cont) this.osc.frequency.setTargetAtTime(style === 'theremin'
+      ? 220 * 2 ** (lv * 3) * (1 + 0.012 * Math.sin(t * 36))                         // 3 Oktaven mit Vibrato
+      : 160 + 1500 * lv * lv, t, 0.04);
+    if (!on || t < this.nextTick) return;
     if (style === 'geiger') {
       const rate = 0.6 + 45 * lv * lv;                       // Klicks pro Sekunde
       this.click();
@@ -618,11 +661,36 @@ const audio = {
     } else if (style === 'sonar') {
       this.tone(520 + 900 * lv, 0.35, 'sine', 0.35, 420 + 800 * lv);
       this.nextTick = t + 1.8 - 1.68 * Math.sqrt(lv);
+    } else if (style === 'park') {                           // Piepser, der bei Volltreffer zum Dauerton wird
+      const gap = 0.9 - 0.86 * Math.sqrt(lv);
+      this.tone(1050, Math.min(0.12, gap), 'square', 0.14);
+      this.nextTick = t + Math.max(gap, 0.05);
+    } else if (style === 'laser') {
+      this.tone(900 + 1600 * lv, 0.11, 'sawtooth', 0.14, 220);
+      this.nextTick = t + 1 / (1 + 13 * lv);
+    } else if (style === 'herz') {                           // Doppelschlag, der schneller wird
+      const beat = 1.25 - 1.0 * Math.sqrt(lv);
+      this.tone(70, 0.13, 'sine', 0.9, 45); setTimeout(() => this.tone(62, 0.16, 'sine', 0.7, 40), beat * 260);
+      this.nextTick = t + beat;
+    } else if (style === 'bit') {                            // pentatonische Tonleiter, klettert mit dem Signal
+      const scale = [0, 2, 4, 7, 9], n = Math.floor(lv * 14.99) + (this.step = ((this.step || 0) + 1) % 2);
+      this.tone(262 * 2 ** ((12 * Math.floor(n / 5) + scale[n % 5]) / 12), 0.09, 'square', 0.12);
+      this.nextTick = t + 0.34 - 0.26 * lv;
     } else this.nextTick = t + 0.1;
   }
 };
 function blip(f, d) { audio.tone(f, d, 'sine', 0.25); }
-function fanfare() { [[784, 0], [988, 110], [1175, 220], [1568, 330]].forEach(([f, ms]) => setTimeout(() => audio.tone(f, 0.22, 'square', 0.18), ms)); }
+const seq = (notes, type, vol) => notes.forEach(([f, ms, dur, to]) => setTimeout(() => audio.tone(f, dur || 0.2, type, vol, to), ms));
+const WIN = {
+  fanfare: () => seq([[784, 0], [988, 110], [1175, 220], [1568, 330, 0.3]], 'square', 0.18),
+  coin: () => seq([[988, 0, 0.08], [1319, 80, 0.45]], 'square', 0.18),
+  levelup: () => seq([[523, 0, 0.1], [659, 80, 0.1], [784, 160, 0.1], [1047, 240, 0.1], [1319, 320, 0.1], [1568, 400, 0.35]], 'triangle', 0.3),
+  tada: () => { seq([[523, 0, 0.12], [659, 0, 0.12], [784, 0, 0.12]], 'sawtooth', 0.1); seq([[523, 170, 0.7], [659, 170, 0.7], [784, 170, 0.7], [1047, 170, 0.7]], 'sawtooth', 0.1); },
+  sirene: () => seq([[600, 0, 0.3, 1300], [600, 320, 0.3, 1300], [600, 640, 0.3, 1300]], 'sawtooth', 0.14),
+  jackpot: () => seq(Array.from({ length: 12 }, (_, i) => [1200 + 300 * (i % 3) + 60 * i, i * 70, 0.07]), 'square', 0.14),
+  off: () => {}
+};
+function winSound() { (WIN[cfg.win] || WIN.fanfare)(); }
 setInterval(() => audio.update(), 25);
 
 // ---------- Anzeige ----------
@@ -651,7 +719,9 @@ function draw(ts) {
   $('state').textContent = st;
   $('sPeak').textContent = live ? fmt(S.peak) : '–';
   $('sBase').textContent = live ? fmt(S.baseMag) : '–';
-  $('sFinds').textContent = finds.length;
+  $('comp').textContent = S.cur && S.running
+    ? `Bx ${fmt(S.cur[0])} · By ${fmt(S.cur[1])} · Bz ${fmt(S.cur[2])} · |B| ${fmt(Math.hypot(...S.cur))} µT${S.rot ? ' · Kalibrierung: drehen … ' + Math.ceil((S.rot.until - performance.now()) / 1000) + ' s' : ''}`
+    : 'Bx – · By – · Bz – · |B| –';
 
   if ($('tab-tracker').hidden) return;   // Radar nur zeichnen, wenn sichtbar
 
@@ -692,31 +762,32 @@ function draw(ts) {
 }
 requestAnimationFrame(draw);
 
-function renderFinds() {
-  const ul = $('finds'); ul.textContent = '';
-  $('noFinds').style.display = finds.length ? 'none' : 'block';
-  finds.forEach((f, i) => {
-    const li = document.createElement('li'), t = document.createElement('time'), n = document.createElement('span'), p = document.createElement('span');
-    t.textContent = new Date(f.t).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    n.className = 'note'; n.textContent = f.note || `${fmt(f.dur)} s`;
-    p.className = 'pk'; p.textContent = fmt(f.peak) + ' µT';
-    li.append(t, n, p);
-    li.onclick = () => { const v = prompt('Notiz zum Fund (z. B. Raum, Platz):', f.note || ''); if (v != null) { f.note = v.trim(); store.set('ht.finds', finds); renderFinds(); } };
-    ul.append(li);
-  });
-}
-
 // ---------- Bedienung ----------
 function bind(id, key, out, after) {
   const el = $(id), isCheck = el.type === 'checkbox', isNum = el.type === 'range';
   if (isCheck) el.checked = cfg[key]; else el.value = cfg[key];
-  const show = () => { if (out) $(out).textContent = out === 'oThr' ? fmt(+el.value, 0) + ' µT' : el.value + ' %'; };
+  const show = () => { if (out) $(out).textContent = el.value + ' %'; };
   show();
   el.addEventListener('input', () => { cfg[key] = isCheck ? el.checked : isNum ? +el.value : el.value; show(); saveCfg(); after && after(); });
 }
-bind('thr', 'thr', 'oThr'); bind('vol', 'vol', 'oVol', () => audio.setVol());
+bind('vol', 'vol', 'oVol', () => audio.setVol());
 bind('mode', 'mode', null, () => { if (S.running) startZero(); });
-bind('auto', 'auto'); bind('sound', 'sound'); bind('fanfare', 'fanfare'); bind('vib', 'vib');
+bind('auto', 'auto'); bind('sound', 'sound'); bind('win', 'win'); bind('vib', 'vib');
+// Schwellenwert: Schieber fürs Grobe, Zahlenfeld für exakte (auch größere) Werte
+function setThr(v, from) {
+  if (!(v > 0)) return;
+  cfg.thr = Math.min(5000, v); saveCfg();
+  if (from !== 'range') $('thr').value = Math.min(150, cfg.thr);
+  if (from !== 'num') $('thrNum').value = cfg.thr;
+}
+setThr(cfg.thr);
+$('thr').addEventListener('input', e => setThr(+e.target.value, 'range'));
+$('thrNum').addEventListener('input', e => setThr(parseFloat(e.target.value.replace(',', '.')), 'num'));
+$('thrNum').addEventListener('blur', () => setThr(cfg.thr));
+$('trySound').onclick = () => { audio.unlock(); audio.nextTick = 0; audio.previewUntil = audio.ctx.currentTime + 4; };
+$('tryWin').onclick = () => { audio.unlock(); winSound(); };
+$('rotCal').onclick = () => { if (!S.running || !S.raw) { alert('Bitte zuerst den Sensor verbinden.'); return; } audio.unlock(); showTab('tracker'); startRot(); };
+$('rotReset').onclick = () => { delete cfg.offsets[S.name]; saveCfg(); showRot(); if (S.running) startZero(); };
 const startLabel = () => cfg.source === 'demo' ? 'Demo starten' : cfg.source === 'phone' ? 'Handy-Sensor starten' : 'Sensor verbinden';
 function showSource() {
   document.querySelectorAll('#srcSeg button').forEach(b => b.classList.toggle('on', cfg.source.startsWith(b.dataset.src)));
@@ -737,14 +808,6 @@ $('zero').onclick = () => { audio.unlock(); startZero(); };
 const showMute = () => { $('mute').textContent = cfg.muted ? '🔇' : '🔊'; };
 showMute();
 $('mute').onclick = () => { cfg.muted = !cfg.muted; saveCfg(); showMute(); audio.unlock(); };
-$('clear').onclick = () => { if (finds.length && confirm('Alle Funde löschen?')) { finds = []; store.set('ht.finds', finds); renderFinds(); } };
-$('csv').onclick = () => {
-  const rows = ['Zeit;Spitze_uT;Dauer_s;Notiz', ...finds.map(f => [new Date(f.t).toLocaleString('de-DE'), String(f.peak).replace('.', ','), String(f.dur).replace('.', ','), '"' + (f.note || '').replace(/"/g, '""') + '"'].join(';'))];
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob(['﻿' + rows.join('\r\n')], { type: 'text/csv' }));
-  a.download = 'handy-tracker-funde.csv'; a.click();
-};
-renderFinds();
 
 if (!navigator.bluetooth) banner('Dieser Browser unterstützt kein Web Bluetooth – der PASCO-Sensor lässt sich nur mit Chrome auf Android verbinden. Die Demo funktioniert trotzdem (Einstellungen → Datenquelle).');
 </script>

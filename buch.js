@@ -92,7 +92,7 @@ $('eName').addEventListener('input', () => {
 });
 ['eKlasse', 'eTime'].forEach(id => $(id).addEventListener('input', showRule));
 $('ePhotoBtn').onclick = () => $('ePhotoIn').click();
-$('ePhotoIn').onchange = async e => { for (const f of e.target.files) formPhotos.push(await shrink(f)); e.target.value = ''; renderFormPhotos(); };
+$('ePhotoIn').onchange = async e => { for (const f of e.target.files) formPhotos.push(await shrink(f)); e.target.value = ''; renderFormPhotos(); if (!$('eName').value) $('eName').focus(); };
 $('eSave').onclick = async () => {
   const name = normName($('eName').value), klasse = $('eKlasse').value.trim();
   if (name.length < 2) { alert('Bitte den Namen eintragen.'); $('eName').focus(); return; }
@@ -106,7 +106,7 @@ $('eSave').onclick = async () => {
   for (const blob of formPhotos) { const id = uid(); await DB.put('photos', { id, blob }); entry.photos.push(id); }
   await DB.put('entries', entry);
   if (old) { initForm(true); bookYear = schoolYear(t); showTab('buch'); openStudent(keyOf(name, klasse)); return; }
-  entries.push(entry);
+  entries.push(entry); countToday();
   cfg.teacher = entry.by; saveCfg();
   const r = rule(forStudent(keyOf(name, klasse), schoolYear(t)).length);
   initForm(true);
@@ -120,6 +120,11 @@ async function editEntry(e) {
   $('eName').value = e.name; $('eKlasse').value = e.klasse; $('eTime').value = localIso(e.t); $('eBy').value = e.by; $('eNote').value = e.note;
   renderFormPhotos(); $('sheet').hidden = true; showTab('einzug');
 }
+
+// Schnellerfassung vom Tracker aus: Kamera sofort öffnen, danach liegt das leere Formular bereit.
+$('quick').onclick = () => { initForm(true); showTab('einzug'); $('ePhotoIn').click(); };
+function countToday() { const d = new Date().toDateString(); $('sFinds').textContent = entries.filter(e => e.src !== 'buch' && new Date(e.t).toDateString() === d).length; }
+setInterval(countToday, 3000);
 
 // ---------- Buch ----------
 let bookYear = schoolYear(Date.now());
@@ -363,7 +368,7 @@ async function applyUpdate() {
 $('updCheck').onclick = () => checkUpdate(true);
 
 // ---------- Start ----------
-DB.open().then(async () => { entries = await DB.all('entries'); initForm(true); renderBook(); })
+DB.open().then(async () => { entries = await DB.all('entries'); initForm(true); renderBook(); countToday(); })
   .catch(e => banner('Der Gerätespeicher für das Einzugsbuch ist nicht verfügbar: ' + (e && e.message)));
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist();   // schützt die Daten vor automatischem Löschen
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
