@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#07130f">
+<title>Handy-Tracker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #07130f; --panel: #0e211a; --panel2: #143026; --line: #1f4a3a;
+    --text: #e6f5ee; --dim: #8fb3a3; --acc: #3dffa2; --warn: #ffd23d; --hot: #ff4d4d;
+    --sig: #3dffa2;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, "Google Sans", Roboto, sans-serif; overscroll-behavior: none; }
+  body { padding: env(safe-area-inset-top) 16px calc(24px + env(safe-area-inset-bottom)); max-width: 560px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 10px; padding: 14px 0 8px; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: .04em; flex: 1; font-weight: 800; }
+  h1 span { color: var(--acc); }
+  .chip { font-size: 12px; padding: 6px 10px; border-radius: 99px; background: var(--panel); border: 1px solid var(--line);
+    color: var(--dim); white-space: nowrap; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
+  .chip.on { color: var(--acc); border-color: var(--acc); }
+  .chip.err { color: var(--hot); border-color: var(--hot); }
+  .icon-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel);
+    color: var(--text); font-size: 18px; }
+  .radar-wrap { position: relative; width: 100%; aspect-ratio: 1; max-height: 52vh; margin: 4px auto 0; }
+  #radar { width: 100%; height: 100%; display: block; }
+  .readout { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    pointer-events: none; text-shadow: 0 2px 12px #000; }
+  #val { font-size: clamp(44px, 15vw, 76px); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; color: var(--sig); }
+  #unit { font-size: 14px; color: var(--dim); margin-top: 2px; }
+  #state { margin-top: 10px; font-size: 17px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--sig); }
+  body.alarm { animation: flash .35s steps(2) infinite; }
+  @keyframes flash { 50% { background: #3a0a0a; } }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; }
+  .stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .stat small { color: var(--dim); font-size: 11px; }
+  #graph { width: 100%; height: 84px; margin-top: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; display: block; }
+  .row { display: flex; gap: 8px; margin-top: 10px; }
+  button.big { flex: 1; min-height: 52px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2);
+    color: var(--text); font-size: 16px; font-weight: 700; }
+  button.big.primary { background: var(--acc); color: #04150d; border-color: var(--acc); }
+  button.big:disabled { opacity: .4; }
+  button:active { transform: scale(.98); }
+  details { margin-top: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+  summary { padding: 14px; font-weight: 700; cursor: pointer; list-style: none; display: flex; justify-content: space-between; }
+  summary::after { content: "▾"; color: var(--dim); }
+  details[open] summary::after { content: "▴"; }
+  .body { padding: 0 14px 14px; }
+  label.f { display: block; margin-top: 12px; font-size: 13px; color: var(--dim); }
+  label.f output { float: right; color: var(--text); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--acc); height: 32px; }
+  select { width: 100%; margin-top: 4px; padding: 10px; border-radius: 10px; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); font-size: 15px; }
+  .check { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 15px; }
+  .check input { width: 22px; height: 22px; accent-color: var(--acc); }
+  .hint { font-size: 12.5px; color: var(--dim); line-height: 1.45; margin: 8px 0 0; }
+  #finds { list-style: none; margin: 0; padding: 0; }
+  #finds li { display: flex; gap: 10px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  #finds li:first-child { border-top: 0; }
+  #finds time { color: var(--dim); font-variant-numeric: tabular-nums; }
+  #finds .pk { font-weight: 700; margin-left: auto; font-variant-numeric: tabular-nums; }
+  #finds .note { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .link { background: none; border: 0; color: var(--acc); font-size: 14px; padding: 8px 0; margin-right: 16px; }
+  pre { font-size: 11px; color: var(--dim); white-space: pre-wrap; word-break: break-all; max-height: 180px; overflow: auto;
+    background: #050d0a; padding: 8px; border-radius: 8px; margin: 8px 0 0; }
+  #banner { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #3a2a05; border: 1px solid var(--warn);
+    color: var(--warn); font-size: 13.5px; line-height: 1.4; }
+</style>
+</head>
+<body>
+<header>
+  <h1>HANDY<span>·</span>TRACKER</h1>
+  <span id="chip" class="chip">Nicht verbunden</span>
+  <button id="mute" class="icon-btn" aria-label="Ton an/aus">🔊</button>
+</header>
+
+<div id="banner"></div>
+
+<div class="radar-wrap">
+  <canvas id="radar"></canvas>
+  <div class="readout">
+    <div id="val">–</div>
+    <div id="unit">µT über Grundfeld</div>
+    <div id="state">Bereit</div>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat"><b id="sPeak">–</b><small>Spitze (µT)</small></div>
+  <div class="stat"><b id="sBase">–</b><small>Grundfeld (µT)</small></div>
+  <div class="stat"><b id="sFinds">0</b><small>Funde</small></div>
+</div>
+
+<canvas id="graph"></canvas>
+
+<div class="row">
+  <button id="connect" class="big primary">Sensor verbinden</button>
+  <button id="zero" class="big" disabled>Nullen</button>
+</div>
+
+<details id="dSettings">
+  <summary>Einstellungen</summary>
+  <div class="body">
+    <label class="f">Alarmschwelle <output id="oThr"></output>
+      <input id="thr" type="range" min="1" max="100" step="1">
+    </label>
+    <p class="hint">Kleiner = empfindlicher, aber mehr Fehlalarme (Stahl in Tischen, Federmäppchen-Magnete, Kopfhörer).</p>
+
+    <label class="f">Betriebsart
+      <select id="mode">
+        <option value="move">Suchen – Sensor wird bewegt</option>
+        <option value="fix">Wache – Sensor liegt still (empfindlicher)</option>
+      </select>
+    </label>
+    <label class="check"><input id="auto" type="checkbox"> Grundfeld automatisch nachführen</label>
+
+    <label class="f">Sound
+      <select id="sound">
+        <option value="geiger">Geigerzähler</option>
+        <option value="detector">Metalldetektor</option>
+        <option value="sonar">U-Boot-Sonar</option>
+        <option value="off">Nur Alarm</option>
+      </select>
+    </label>
+    <label class="f">Lautstärke <output id="oVol"></output>
+      <input id="vol" type="range" min="0" max="100" step="5">
+    </label>
+    <label class="check"><input id="fanfare" type="checkbox"> Fanfare bei Fund</label>
+    <label class="check"><input id="vib" type="checkbox"> Vibration bei Fund</label>
+
+    <label class="f">Datenquelle
+      <select id="source">
+        <option value="pasco">PASCO Magnetfeldsensor (Bluetooth)</option>
+        <option value="pascoAll">PASCO – alle Bluetooth-Geräte anzeigen</option>
+        <option value="phone">Magnetometer dieses Handys</option>
+        <option value="demo">Demo (simuliert)</option>
+      </select>
+    </label>
+  </div>
+</details>
+
+<details id="dFinds">
+  <summary>Fundliste</summary>
+  <div class="body">
+    <ul id="finds"></ul>
+    <p id="noFinds" class="hint">Noch keine Funde. Ein Fund wird gespeichert, sobald das Signal die Alarmschwelle überschreitet. Antippen, um eine Notiz (z. B. Raum) zu ergänzen.</p>
+    <button class="link" id="csv">CSV exportieren</button>
+    <button class="link" id="clear">Liste leeren</button>
+  </div>
+</details>
+
+<details>
+  <summary>Hilfe &amp; Diagnose</summary>
+  <div class="body">
+    <p class="hint"><b>So geht's:</b> PASCO-Sensor einschalten (LED blinkt), „Sensor verbinden“ tippen und das Gerät „Mag Field …“ wählen. Sensor frei in die Luft halten, „Nullen“ tippen, dann langsam an Taschen, Bänken oder Jacken entlangführen.</p>
+    <p class="hint"><b>Reichweite:</b> Das Magnetfeld eines Handys (Lautsprecher, Lade-Magnete) fällt sehr schnell ab – realistisch sind etwa 5–15 cm. Der Sensor reagiert genauso auf andere Magnete und auf Stahl.</p>
+    <p class="hint">Unterstützt wird der kabellose PASCO-Sensor PS-3221 (3-Achsen). Chrome auf Android nötig; Bluetooth und ggf. Standort müssen eingeschaltet sein.</p>
+    <pre id="diag">Noch keine Daten.</pre>
+  </div>
+</details>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const fmt = (v, d = 1) => v.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = {
+  get(k, def) { try { const v = localStorage.getItem(k); return v == null ? def : JSON.parse(v); } catch { return def; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+// ---------- Zustand ----------
+const cfg = Object.assign({ thr: 8, mode: 'move', auto: true, sound: 'geiger', vol: 70, fanfare: true, vib: true, source: 'pasco', muted: false },
+  store.get('ht.cfg', {}));
+const saveCfg = () => store.set('ht.cfg', cfg);
+let finds = store.get('ht.finds', []);
+
+const S = {
+  running: false, name: '',
+  cur: null,            // letzter Messwert [x,y,z] in µT
+  base: null,           // Grundfeld [x,y,z]
+  baseMag: 0,
+  calib: null,          // Sammelpuffer beim Nullen
+  sig: 0,               // geglättetes Signal in µT
+  level: 0,             // 0..1 (logarithmisch)
+  peak: 0,
+  event: null,          // laufender Fund
+  hist: [],             // Verlauf fürs Diagramm
+  lastT: 0, rate: 0
+};
+
+// ---------- Signalverarbeitung ----------
+function onSample(x, y, z) {
+  const now = performance.now();
+  const dt = S.lastT ? Math.min(0.5, (now - S.lastT) / 1000) : 0.05;
+  if (S.lastT) S.rate += (1 / Math.max(dt, 0.001) - S.rate) * 0.1;
+  S.lastT = now;
+  S.cur = [x, y, z];
+
+  if (S.calib) {
+    S.calib.push([x, y, z]);
+    if (now - S.calibT > 1200 && S.calib.length >= 5) finishZero();
+    return;
+  }
+  if (!S.base) { startZero(); S.calib.push([x, y, z]); return; }
+
+  const mag = Math.hypot(x, y, z);
+  const raw = cfg.mode === 'move'
+    ? Math.abs(mag - S.baseMag)                                         // drehunabhängig
+    : Math.hypot(x - S.base[0], y - S.base[1], z - S.base[2]);          // volle Vektor-Differenz
+  S.sig += (raw - S.sig) * 0.4;
+
+  // Grundfeld langsam nachführen, solange nichts Auffälliges da ist
+  if (cfg.auto && !S.event && S.sig < cfg.thr * 0.5) {
+    const a = dt / 8;
+    for (let i = 0; i < 3; i++) S.base[i] += (S.cur[i] - S.base[i]) * a;
+    S.baseMag += (mag - S.baseMag) * a;
+  }
+
+  S.level = clamp(Math.log(1 + S.sig / 2) / Math.log(1 + 300 / 2), 0, 1);
+  if (S.sig > S.peak) S.peak = S.sig;
+  S.hist.push(S.sig); if (S.hist.length > 400) S.hist.shift();
+  trackEvent(now);
+}
+
+function startZero() { S.calib = []; S.calibT = performance.now(); S.event = null; setAlarm(false); }
+function finishZero() {
+  const n = S.calib.length, b = [0, 0, 0];
+  for (const v of S.calib) for (let i = 0; i < 3; i++) b[i] += v[i] / n;
+  S.base = b; S.baseMag = S.calib.reduce((s, v) => s + Math.hypot(...v), 0) / n;
+  S.calib = null; S.sig = 0; S.peak = 0; S.hist.length = 0;
+  blip(880, 0.08); setTimeout(() => blip(1320, 0.12), 90);
+}
+
+function trackEvent(now) {
+  if (!S.event) {
+    if (S.sig >= cfg.thr) {
+      S.event = { t: Date.now(), start: now, peak: S.sig, below: 0 };
+      setAlarm(true);
+      if (cfg.fanfare) fanfare();
+      if (cfg.vib && navigator.vibrate) navigator.vibrate([120, 60, 120, 60, 300]);
+    }
+    return;
+  }
+  const e = S.event;
+  if (S.sig > e.peak) e.peak = S.sig;
+  if (S.sig < cfg.thr * 0.6) { if (!e.below) e.below = now; } else e.below = 0;
+  if (e.below && now - e.below > 1000) {
+    finds.unshift({ t: e.t, peak: +e.peak.toFixed(1), dur: +((e.below - e.start) / 1000).toFixed(1), note: '' });
+    finds = finds.slice(0, 200); store.set('ht.finds', finds); renderFinds();
+    S.event = null; setAlarm(false);
+  }
+}
+function setAlarm(on) { document.body.classList.toggle('alarm', on); }
+
+// ---------- Datenquellen ----------
+const UUID = (svc, chr) => `4a5c000${svc}-000${chr}-0000-0000-5c1e741f1c00`;
+const diagLines = [];
+function diag(msg) {
+  diagLines.push(new Date().toLocaleTimeString('de-DE') + ' ' + msg);
+  if (diagLines.length > 40) diagLines.shift();
+  $('diag').textContent = diagLines.join('\n');
+}
+const hex = dv => Array.from(new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength), b => b.toString(16).padStart(2, '0')).join(' ');
+
+const pasco = {
+  dev: null, tx: null, rx: null, pending: null, wanted: false, rawLogged: 0,
+  async start(all) {
+    if (!navigator.bluetooth) throw new Error('Dieser Browser kann kein Web Bluetooth. Bitte Chrome auf Android benutzen.');
+    const opts = all ? { acceptAllDevices: true } : { filters: [{ namePrefix: 'Mag Field' }] };
+    opts.optionalServices = [UUID(0, 0), UUID(1, 0), UUID(2, 0)];
+    this.dev = await navigator.bluetooth.requestDevice(opts);
+    this.dev.addEventListener('gattserverdisconnected', () => this.onLost());
+    this.wanted = true;
+    await this.open();
+    return (this.dev.name || 'PASCO').split('>')[0].trim();
+  },
+  async open() {
+    diag('Verbinde mit ' + (this.dev.name || '?') + ' …');
+    const gatt = await this.dev.gatt.connect();
+    // Geräte-Kanal (Dienst 0): Benachrichtigungen aktivieren, falls vorhanden
+    try {
+      const s0 = await gatt.getPrimaryService(UUID(0, 0));
+      const c0 = await s0.getCharacteristic(UUID(0, 3));
+      await c0.startNotifications();
+    } catch (e) { diag('Dienst 0 übersprungen: ' + e.message); }
+    const svc = await gatt.getPrimaryService(UUID(1, 0));
+    this.tx = await svc.getCharacteristic(UUID(1, 2));
+    this.rx = await svc.getCharacteristic(UUID(1, 3));
+    this.rx.addEventListener('characteristicvaluechanged', e => this.onData(e.target.value));
+    await this.rx.startNotifications();
+    this.rawLogged = 0;
+    diag('Verbunden, starte Messung.');
+    this.loop();
+  },
+  onData(dv) {
+    if (this.rawLogged < 5) { diag('RX ' + hex(dv)); this.rawLogged++; }
+    // Antwort auf Einzelmessung: C0 00 05 | x y z (je int16 LE, 0,15 µT pro Schritt im ±50-G-Bereich)
+    if (dv.byteLength >= 9 && dv.getUint8(0) === 0xC0 && dv.getUint8(1) === 0 && dv.getUint8(2) === 0x05) {
+      onSample(dv.getInt16(3, true) * 0.15, dv.getInt16(5, true) * 0.15, dv.getInt16(7, true) * 0.15);
+      if (this.pending) { this.pending(true); this.pending = null; }
+    }
+  },
+  async loop() {
+    const my = this.loopId = (this.loopId || 0) + 1;
+    const cmd = Uint8Array.of(0x05, 6);   // GCMD_READ_ONE_SAMPLE, 6 Datenbytes
+    let misses = 0;
+    while (this.wanted && my === this.loopId && this.dev.gatt.connected) {
+      const t0 = performance.now();
+      try {
+        const got = new Promise(res => { this.pending = res; setTimeout(() => res(false), 500); });
+        if (this.tx.properties.write) await this.tx.writeValueWithResponse(cmd);
+        else await this.tx.writeValueWithoutResponse(cmd);
+        if (await got) misses = 0;
+        else if (++misses === 6) { diag('Sensor antwortet nicht auf Messanfragen.'); banner('Verbunden, aber der Sensor liefert keine Messwerte. Details unter „Hilfe & Diagnose“.'); }
+      } catch (e) { diag('Schreibfehler: ' + e.message); await sleep(300); }
+      await sleep(Math.max(0, 50 - (performance.now() - t0)));   // ~20 Hz
+    }
+  },
+  async onLost() {
+    if (!this.wanted) return;
+    diag('Verbindung verloren.'); setChip('Verbindung verloren …', 'err');
+    for (let i = 0; i < 8 && this.wanted; i++) {
+      await sleep(1000 + i * 500);
+      try { await this.open(); setChip(S.name, 'on'); return; } catch (e) { diag('Neuversuch ' + (i + 1) + ': ' + e.message); }
+    }
+    if (this.wanted) stop('Verbindung verloren');
+  },
+  stop() { this.wanted = false; try { this.dev && this.dev.gatt.disconnect(); } catch {} }
+};
+
+const phone = {
+  sensor: null,
+  async start() {
+    if (!('Magnetometer' in window)) throw new Error('Das Handy-Magnetometer ist in Chrome gesperrt. Zum Freischalten chrome://flags öffnen und „Generic Sensor Extra Classes“ aktivieren.');
+    const s = this.sensor = new Magnetometer({ frequency: 20 });
+    await new Promise((res, rej) => {
+      s.addEventListener('error', e => rej(new Error('Magnetometer: ' + e.error.message)), { once: true });
+      s.addEventListener('activate', res, { once: true });
+      s.start();
+    });
+    s.addEventListener('reading', () => onSample(s.x, s.y, s.z));
+    return 'Handy-Sensor';
+  },
+  stop() { try { this.sensor && this.sensor.stop(); } catch {} }
+};
+
+const demo = {
+  timer: 0,
+  async start() {
+    let t = 0, next = 4, amp = 0, pos = 0;
+    this.timer = setInterval(() => {
+      t += 0.05;
+      if (t > next) { amp = 10 + Math.random() * 120; pos = t + 2; next = t + 7 + Math.random() * 6; }
+      const bump = amp * Math.exp(-((t - pos) ** 2) / 0.8);
+      const n = () => (Math.random() - 0.5) * 0.6;
+      onSample(20 + n() + bump * 0.5, -5 + n() + bump * 0.3, -43 + n() - bump * 0.8);
+    }, 50);
+    return 'Demo';
+  },
+  stop() { clearInterval(this.timer); }
+};
+
+let active = null;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function start() {
+  audio.unlock();
+  banner('');
+  const src = cfg.source;
+  active = src === 'demo' ? demo : src === 'phone' ? phone : pasco;
+  setChip('Verbinde …');
+  try {
+    S.name = await active.start(src === 'pascoAll');
+  } catch (e) {
+    active = null; setChip('Nicht verbunden');
+    if (e.name !== 'NotFoundError') { banner(e.message); diag('Fehler: ' + e.message); }   // NotFoundError = Auswahl abgebrochen
+    return;
+  }
+  S.running = true; S.base = null; S.calib = null; S.lastT = 0;
+  setChip(S.name, 'on');
+  $('connect').textContent = 'Trennen'; $('connect').classList.remove('primary');
+  $('zero').disabled = false;
+  wake.on();
+}
+function stop(reason) {
+  if (active) active.stop();
+  active = null; S.running = false; S.event = null; S.level = 0; S.sig = 0; S.cur = null;
+  setAlarm(false);
+  setChip(reason || 'Nicht verbunden', reason ? 'err' : '');
+  $('connect').textContent = 'Sensor verbinden'; $('connect').classList.add('primary');
+  $('zero').disabled = true;
+  wake.off();
+}
+function setChip(text, cls) { const c = $('chip'); c.textContent = text; c.className = 'chip ' + (cls || ''); }
+function banner(msg) { const b = $('banner'); b.textContent = msg; b.style.display = msg ? 'block' : 'none'; }
+
+const wake = {
+  lock: null, want: false,
+  async on() { this.want = true; try { this.lock = await navigator.wakeLock.request('screen'); } catch {} },
+  off() { this.want = false; try { this.lock && this.lock.release(); } catch {} this.lock = null; }
+};
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && wake.want) wake.on(); });
+
+// ---------- Ton ----------
+const audio = {
+  ctx: null, master: null, osc: null, oscGain: null, nextTick: 0, noise: null,
+  unlock() {
+    if (!this.ctx) {
+      const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+      const ctx = this.ctx = new C();
+      this.master = ctx.createGain(); this.master.connect(ctx.destination);
+      this.osc = ctx.createOscillator(); this.osc.type = 'triangle';
+      this.oscGain = ctx.createGain(); this.oscGain.gain.value = 0;
+      this.osc.connect(this.oscGain).connect(this.master); this.osc.start();
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.03, ctx.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2;
+      this.noise = buf;
+    }
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    this.setVol();
+  },
+  setVol() { if (this.master) this.master.gain.value = cfg.muted ? 0 : (cfg.vol / 100) ** 2; },
+  click() {
+    const s = this.ctx.createBufferSource(); s.buffer = this.noise;
+    const g = this.ctx.createGain(); g.gain.value = 0.9; s.connect(g).connect(this.master); s.start();
+  },
+  tone(freq, dur, type = 'sine', vol = 0.3, slideTo) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g).connect(this.master); o.start(t); o.stop(t + dur + 0.02);
+  },
+  // wird ~40x pro Sekunde aufgerufen
+  update() {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime, lv = S.running && S.base ? S.level : 0, style = cfg.sound;
+    const det = style === 'detector' && lv > 0.04;
+    this.oscGain.gain.setTargetAtTime(det ? 0.05 + 0.25 * lv : 0, t, 0.04);
+    if (det) this.osc.frequency.setTargetAtTime(160 + 1500 * lv * lv, t, 0.04);
+    if (!S.running || !S.base || t < this.nextTick) return;
+    if (style === 'geiger') {
+      const rate = 0.6 + 45 * lv * lv;                       // Klicks pro Sekunde
+      this.click();
+      this.nextTick = t + Math.max(0.012, -Math.log(1 - Math.random() * 0.98) / rate);
+    } else if (style === 'sonar') {
+      this.tone(520 + 900 * lv, 0.35, 'sine', 0.35, 420 + 800 * lv);
+      this.nextTick = t + 1.8 - 1.68 * Math.sqrt(lv);
+    } else this.nextTick = t + 0.1;
+  }
+};
+function blip(f, d) { audio.tone(f, d, 'sine', 0.25); }
+function fanfare() { [[784, 0], [988, 110], [1175, 220], [1568, 330]].forEach(([f, ms]) => setTimeout(() => audio.tone(f, 0.22, 'square', 0.18), ms)); }
+setInterval(() => audio.update(), 25);
+
+// ---------- Anzeige ----------
+const radar = $('radar'), rctx = radar.getContext('2d');
+const graph = $('graph'), gctx = graph.getContext('2d');
+function fit(c) {
+  const r = c.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+  if (c.width !== Math.round(r.width * d) || c.height !== Math.round(r.height * d)) { c.width = Math.round(r.width * d); c.height = Math.round(r.height * d); }
+  return d;
+}
+const colorFor = lv => `hsl(${150 - 150 * clamp(lv * 1.25, 0, 1)} 100% 60%)`;
+let sweep = 0, pulses = [], lastPulse = 0, lastFrame = 0;
+
+function draw(ts) {
+  requestAnimationFrame(draw);
+  const dt = Math.min(0.1, (ts - lastFrame) / 1000 || 0); lastFrame = ts;
+  const live = S.running && S.base, lv = live ? S.level : 0, col = colorFor(lv);
+  document.documentElement.style.setProperty('--sig', live ? col : '#8fb3a3');
+
+  // Texte
+  $('val').textContent = live ? fmt(S.sig, S.sig < 100 ? 1 : 0) : '–';
+  let st = 'Bereit';
+  if (S.running && S.calib) st = 'Nulle … ruhig halten';
+  else if (live) st = S.sig < cfg.thr * 0.4 ? 'Alles ruhig' : S.sig < cfg.thr ? 'Da ist was …' : S.sig < cfg.thr * 4 ? 'Fund! Ganz nah dran' : 'Volltreffer!';
+  $('state').textContent = st;
+  $('sPeak').textContent = live ? fmt(S.peak) : '–';
+  $('sBase').textContent = live ? fmt(S.baseMag) : '–';
+  $('sFinds').textContent = finds.length;
+
+  // Radar
+  let d = fit(radar); const w = radar.width, h = radar.height, cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 4 * d;
+  rctx.clearRect(0, 0, w, h);
+  rctx.lineWidth = d; rctx.strokeStyle = '#1f4a3a';
+  for (let i = 1; i <= 4; i++) { rctx.beginPath(); rctx.arc(cx, cy, R * i / 4, 0, 7); rctx.stroke(); }
+  rctx.beginPath(); rctx.moveTo(cx - R, cy); rctx.lineTo(cx + R, cy); rctx.moveTo(cx, cy - R); rctx.lineTo(cx, cy + R); rctx.stroke();
+  if (S.running) {
+    sweep += dt * (1.2 + 5 * lv);
+    const g = rctx.createConicGradient(sweep, cx, cy);
+    g.addColorStop(0, 'transparent'); g.addColorStop(0.8, 'transparent'); g.addColorStop(1, col);
+    rctx.globalAlpha = 0.35; rctx.fillStyle = g; rctx.beginPath(); rctx.arc(cx, cy, R, 0, 7); rctx.fill(); rctx.globalAlpha = 1;
+    // Signal-Glühen in der Mitte
+    const rg = rctx.createRadialGradient(cx, cy, 0, cx, cy, R * (0.15 + 0.85 * lv));
+    rg.addColorStop(0, col); rg.addColorStop(1, 'transparent');
+    rctx.globalAlpha = 0.15 + 0.5 * lv; rctx.fillStyle = rg; rctx.beginPath(); rctx.arc(cx, cy, R, 0, 7); rctx.fill(); rctx.globalAlpha = 1;
+    // Wellen
+    if (live && ts - lastPulse > 1400 - 1250 * Math.sqrt(lv)) { pulses.push(0); lastPulse = ts; }
+    pulses = pulses.map(p => p + dt * 0.9).filter(p => p < 1);
+    rctx.strokeStyle = col; rctx.lineWidth = 2 * d;
+    for (const p of pulses) { rctx.globalAlpha = (1 - p) * 0.7; rctx.beginPath(); rctx.arc(cx, cy, R * p, 0, 7); rctx.stroke(); }
+    rctx.globalAlpha = 1;
+  }
+
+  // Verlauf
+  d = fit(graph); const gw = graph.width, gh = graph.height;
+  gctx.clearRect(0, 0, gw, gh);
+  const top = Math.max(cfg.thr * 2, ...S.hist, 5), yOf = v => gh - 4 * d - (v / top) * (gh - 10 * d);
+  gctx.setLineDash([4 * d, 4 * d]); gctx.strokeStyle = '#ffd23d'; gctx.lineWidth = d;
+  gctx.beginPath(); gctx.moveTo(0, yOf(cfg.thr)); gctx.lineTo(gw, yOf(cfg.thr)); gctx.stroke(); gctx.setLineDash([]);
+  if (S.hist.length > 1) {
+    gctx.strokeStyle = col; gctx.lineWidth = 2 * d; gctx.beginPath();
+    S.hist.forEach((v, i) => { const x = gw - (S.hist.length - 1 - i) * (gw / 400); i ? gctx.lineTo(x, yOf(v)) : gctx.moveTo(x, yOf(v)); });
+    gctx.stroke();
+  }
+}
+requestAnimationFrame(draw);
+
+function renderFinds() {
+  const ul = $('finds'); ul.textContent = '';
+  $('noFinds').style.display = finds.length ? 'none' : 'block';
+  finds.forEach((f, i) => {
+    const li = document.createElement('li'), t = document.createElement('time'), n = document.createElement('span'), p = document.createElement('span');
+    t.textContent = new Date(f.t).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    n.className = 'note'; n.textContent = f.note || `${fmt(f.dur)} s`;
+    p.className = 'pk'; p.textContent = fmt(f.peak) + ' µT';
+    li.append(t, n, p);
+    li.onclick = () => { const v = prompt('Notiz zum Fund (z. B. Raum, Platz):', f.note || ''); if (v != null) { f.note = v.trim(); store.set('ht.finds', finds); renderFinds(); } };
+    ul.append(li);
+  });
+}
+
+// ---------- Bedienung ----------
+function bind(id, key, out, after) {
+  const el = $(id), isCheck = el.type === 'checkbox', isNum = el.type === 'range';
+  if (isCheck) el.checked = cfg[key]; else el.value = cfg[key];
+  const show = () => { if (out) $(out).textContent = out === 'oThr' ? fmt(+el.value, 0) + ' µT' : el.value + ' %'; };
+  show();
+  el.addEventListener('input', () => { cfg[key] = isCheck ? el.checked : isNum ? +el.value : el.value; show(); saveCfg(); after && after(); });
+}
+bind('thr', 'thr', 'oThr'); bind('vol', 'vol', 'oVol', () => audio.setVol());
+bind('mode', 'mode', null, () => { if (S.running) startZero(); });
+bind('auto', 'auto'); bind('sound', 'sound'); bind('fanfare', 'fanfare'); bind('vib', 'vib');
+bind('source', 'source', null, () => { if (S.running) stop(); });
+
+$('connect').onclick = () => S.running ? stop() : start();
+$('zero').onclick = () => { audio.unlock(); startZero(); };
+const showMute = () => { $('mute').textContent = cfg.muted ? '🔇' : '🔊'; };
+showMute();
+$('mute').onclick = () => { cfg.muted = !cfg.muted; saveCfg(); showMute(); audio.unlock(); };
+$('clear').onclick = () => { if (finds.length && confirm('Alle Funde löschen?')) { finds = []; store.set('ht.finds', finds); renderFinds(); } };
+$('csv').onclick = () => {
+  const rows = ['Zeit;Spitze_uT;Dauer_s;Notiz', ...finds.map(f => [new Date(f.t).toLocaleString('de-DE'), String(f.peak).replace('.', ','), String(f.dur).replace('.', ','), '"' + (f.note || '').replace(/"/g, '""') + '"'].join(';'))];
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + rows.join('\r\n')], { type: 'text/csv' }));
+  a.download = 'handy-tracker-funde.csv'; a.click();
+};
+renderFinds();
+
+if (!navigator.bluetooth) banner('Dieser Browser unterstützt kein Web Bluetooth – der PASCO-Sensor lässt sich nur mit Chrome auf Android verbinden. Die Demo funktioniert trotzdem (Einstellungen → Datenquelle).');
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
