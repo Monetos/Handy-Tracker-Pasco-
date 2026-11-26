@@ -71,6 +71,49 @@
     background: #050d0a; padding: 8px; border-radius: 8px; margin: 8px 0 0; }
   #banner { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #3a2a05; border: 1px solid var(--warn);
     color: var(--warn); font-size: 13.5px; line-height: 1.4; }
+  h2 { font-size: 18px; margin: 14px 0 6px; }
+  body { padding-bottom: calc(86px + env(safe-area-inset-bottom)) !important; }
+  #nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: #0a1a14; border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom); z-index: 5; }
+  #nav button { flex: 1; background: none; border: 0; color: var(--dim); font-size: 12px; padding: 8px 0 10px; }
+  #nav button span { display: block; font-size: 20px; filter: grayscale(1) opacity(.7); }
+  #nav button.on { color: var(--acc); font-weight: 700; }
+  #nav button.on span { filter: none; }
+  .seg { display: flex; margin-top: 10px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .seg button { flex: 1; padding: 10px 4px; background: var(--panel); color: var(--dim); border: 0; font-size: 13.5px; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--panel2); color: var(--acc); font-weight: 700; }
+  input[type=text], input[type=search], input[type=password], input[type=datetime-local], input[type=date], textarea {
+    width: 100%; margin-top: 4px; padding: 11px; border-radius: 10px; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); font-size: 16px; font-family: inherit; color-scheme: dark; }
+  .rule { margin-top: 12px; padding: 12px; border-radius: 12px; border: 1px solid var(--warn); background: #2b2206; font-size: 14px; line-height: 1.4; }
+  .rule b { display: block; font-size: 16px; color: var(--warn); }
+  .rule.r2 { border-color: var(--hot); background: #2e0c0c; } .rule.r2 b { color: var(--hot); }
+  .photos { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .photos img { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
+  .list { list-style: none; margin: 10px 0 0; padding: 0; }
+  .list li { display: flex; align-items: center; gap: 10px; padding: 12px; margin-top: 6px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 12px; }
+  .list .who { flex: 1; min-width: 0; } .list .who b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .list .who small { color: var(--dim); }
+  .badge { font-size: 12px; font-weight: 700; padding: 5px 9px; border-radius: 99px; background: #2b2206; color: var(--warn); border: 1px solid var(--warn); white-space: nowrap; }
+  .badge.r2 { background: #2e0c0c; color: var(--hot); border-color: var(--hot); }
+  .badge.ok { background: none; color: var(--dim); border-color: var(--line); }
+  .sheet { position: fixed; inset: 0; background: var(--bg); z-index: 10; overflow: auto;
+    padding: env(safe-area-inset-top) 16px calc(24px + env(safe-area-inset-bottom)); }
+  .sheet-head { display: flex; align-items: center; gap: 12px; position: sticky; top: 0; background: var(--bg); padding: 10px 0; z-index: 1; }
+  .sheet-head h2 { margin: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-top: 10px; font-size: 14px; line-height: 1.5; }
+  .card .t { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-weight: 700; }
+  .card .acts { display: flex; flex-wrap: wrap; }
+  .page { width: 100%; border-radius: 10px; border: 1px solid var(--line); margin-top: 8px; }
+  .srow { display: grid; grid-template-columns: 1fr 64px 36px; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .srow input { margin: 0; padding: 9px; font-size: 15px; }
+  .srow .d { grid-column: 1 / 2; } .srow .b { grid-column: 2 / 4; }
+  .srow button { background: none; border: 0; color: var(--hot); font-size: 18px; }
+  #update { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #06301f; border: 1px solid var(--acc); font-size: 14px; }
+  #update button { margin-top: 8px; width: 100%; min-height: 44px; border-radius: 10px; border: 0; background: var(--acc); color: #04150d; font-weight: 700; font-size: 15px; }
+  progress { width: 100%; accent-color: var(--acc); margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -81,6 +124,9 @@
 </header>
 
 <div id="banner"></div>
+<div id="update"></div>
+
+<section id="tab-tracker" class="tab">
 
 <div class="radar-wrap">
   <canvas id="radar"></canvas>
@@ -99,11 +145,85 @@
 
 <canvas id="graph"></canvas>
 
+<div class="seg" id="srcSeg">
+  <button data-src="pasco">PASCO-Sensor</button>
+  <button data-src="phone">Handy-Sensor</button>
+  <button data-src="demo">Demo</button>
+</div>
+
 <div class="row">
   <button id="connect" class="big primary">Sensor verbinden</button>
   <button id="zero" class="big" disabled>Nullen</button>
 </div>
 
+<details id="dFinds">
+  <summary>Fundliste</summary>
+  <div class="body">
+    <ul id="finds"></ul>
+    <p id="noFinds" class="hint">Noch keine Funde. Ein Fund wird gespeichert, sobald das Signal die Alarmschwelle überschreitet. Antippen, um eine Notiz (z. B. Raum) zu ergänzen.</p>
+    <button class="link" id="csv">CSV exportieren</button>
+    <button class="link" id="clear">Liste leeren</button>
+  </div>
+</details>
+
+</section>
+
+<section id="tab-einzug" class="tab" hidden>
+  <h2>Handy einziehen</h2>
+  <label class="f">Schüler/in
+    <input id="eName" type="text" list="dlNames" autocomplete="off" autocapitalize="words" placeholder="Vorname Nachname">
+  </label>
+  <datalist id="dlNames"></datalist>
+  <label class="f">Klasse
+    <input id="eKlasse" type="text" autocomplete="off" placeholder="z. B. 8b">
+  </label>
+  <div id="eRule" class="rule" hidden></div>
+  <label class="f">Datum und Uhrzeit
+    <input id="eTime" type="datetime-local">
+  </label>
+  <label class="f">Eingezogen von
+    <input id="eBy" type="text" placeholder="Lehrkraft oder Kürzel">
+  </label>
+  <label class="f">Notiz
+    <textarea id="eNote" rows="2" placeholder="z. B. Raum, Situation, Gerät"></textarea>
+  </label>
+  <div class="photos" id="ePhotos"></div>
+  <div class="row">
+    <button class="big" id="ePhotoBtn">📷 Foto vom Handy</button>
+    <input id="ePhotoIn" type="file" accept="image/*" capture="environment" hidden>
+  </div>
+  <div class="row"><button class="big primary" id="eSave">Einzug speichern</button></div>
+</section>
+
+<section id="tab-buch" class="tab" hidden>
+  <h2>Einzugsbuch</h2>
+  <div class="row" style="margin-top:0">
+    <select id="bYear" aria-label="Schuljahr" style="flex:0 0 42%;margin:0"></select>
+    <input id="bSearch" type="search" placeholder="Name oder Klasse suchen" style="margin:0">
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="bTotal">0</b><small>Einzüge</small></div>
+    <div class="stat"><b id="bStud">0</b><small>Schüler/innen</small></div>
+    <div class="stat"><b id="bOpen">0</b><small>noch verwahrt</small></div>
+  </div>
+  <ul id="students" class="list"></ul>
+  <p id="noStud" class="hint">Noch keine Einträge in diesem Schuljahr.</p>
+  <div class="row"><button class="big" id="scanBtn">📖 Buchseite scannen</button></div>
+  <div class="row">
+    <button class="big" id="bCsv">CSV-Export</button>
+    <button class="big" id="bBackup">Backup sichern</button>
+    <button class="big" id="bRestore">Backup laden</button>
+    <input id="bRestoreIn" type="file" accept="application/json,.json" hidden>
+  </div>
+  <p class="hint">Alle Einträge und Fotos liegen nur auf diesem Gerät. Ein Backup schützt vor Datenverlust beim Handywechsel.</p>
+</section>
+
+<div id="sheet" class="sheet" hidden>
+  <div class="sheet-head"><button id="sheetClose" class="icon-btn" aria-label="Schließen">✕</button><h2 id="sheetTitle"></h2></div>
+  <div id="sheetBody"></div>
+</div>
+
+<section id="tab-mehr" class="tab" hidden>
 <details id="dSettings">
   <summary>Einstellungen</summary>
   <div class="body">
@@ -145,25 +265,51 @@
   </div>
 </details>
 
-<details id="dFinds">
-  <summary>Fundliste</summary>
-  <div class="body">
-    <ul id="finds"></ul>
-    <p id="noFinds" class="hint">Noch keine Funde. Ein Fund wird gespeichert, sobald das Signal die Alarmschwelle überschreitet. Antippen, um eine Notiz (z. B. Raum) zu ergänzen.</p>
-    <button class="link" id="csv">CSV exportieren</button>
-    <button class="link" id="clear">Liste leeren</button>
-  </div>
-</details>
-
 <details>
   <summary>Hilfe &amp; Diagnose</summary>
   <div class="body">
     <p class="hint"><b>So geht's:</b> PASCO-Sensor einschalten (LED blinkt), „Sensor verbinden“ tippen und das Gerät „Mag Field …“ wählen. Sensor frei in die Luft halten, „Nullen“ tippen, dann langsam an Taschen, Bänken oder Jacken entlangführen.</p>
     <p class="hint"><b>Reichweite:</b> Das Magnetfeld eines Handys (Lautsprecher, Lade-Magnete) fällt sehr schnell ab – realistisch sind etwa 5–15 cm. Der Sensor reagiert genauso auf andere Magnete und auf Stahl.</p>
     <p class="hint">Unterstützt wird der kabellose PASCO-Sensor PS-3221 (3-Achsen). Chrome auf Android nötig; Bluetooth und ggf. Standort müssen eingeschaltet sein.</p>
+    <p class="hint"><b>Ohne PASCO-Sensor:</b> Über „Handy-Sensor“ misst das Magnetometer dieses Handys. Dafür einmalig in Chrome <i>chrome://flags/#enable-generic-sensor-extra-classes</i> auf „Enabled“ stellen. Das eigene Handy dann flach und langsam über Taschen oder Bänke führen – Reichweite nur wenige Zentimeter.</p>
     <pre id="diag">Noch keine Daten.</pre>
   </div>
 </details>
+
+<details>
+  <summary>Buch-Scan: Texterkennung</summary>
+  <div class="body">
+    <label class="f">Erkennung
+      <select id="ocrMode">
+        <option value="local">Auf dem Gerät (nur Druckschrift)</option>
+        <option value="ai">KI-Erkennung (auch Handschrift)</option>
+      </select>
+    </label>
+    <label class="f">Anthropic-API-Schlüssel (nur für KI-Erkennung)
+      <input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-…">
+    </label>
+    <p class="hint">Bei der KI-Erkennung wird das Foto der Buchseite – mit den Namen der Schülerinnen und Schüler – an Anthropic gesendet. Bitte vorher mit Schulleitung bzw. Datenschutzbeauftragten klären. Die Erkennung auf dem Gerät sendet nichts, liest aber keine Handschrift.</p>
+  </div>
+</details>
+
+<details open>
+  <summary>App &amp; Update</summary>
+  <div class="body">
+    <p class="hint">Installierte Version: <b id="verNow"></b><span id="verNew"></span></p>
+    <div class="row"><button class="big" id="updCheck">Nach Update suchen</button></div>
+    <p class="hint">Die App prüft bei jedem Start selbst, ob es eine neue Version gibt, und zeigt dann oben einen Hinweis. Einträge und Einstellungen bleiben beim Update erhalten.</p>
+    <pre id="changelog" hidden></pre>
+  </div>
+</details>
+</section>
+
+<nav id="nav">
+  <button data-tab="tracker" class="on"><span>📡</span>Tracker</button>
+  <button data-tab="einzug"><span>📱</span>Einziehen</button>
+  <button data-tab="buch"><span>📖</span>Buch</button>
+  <button data-tab="mehr"><span>⚙️</span>Mehr</button>
+</nav>
+<script src="version.js"></script>
 
 <script>
 'use strict';
@@ -338,7 +484,8 @@ const pasco = {
 const phone = {
   sensor: null,
   async start() {
-    if (!('Magnetometer' in window)) throw new Error('Das Handy-Magnetometer ist in Chrome gesperrt. Zum Freischalten chrome://flags öffnen und „Generic Sensor Extra Classes“ aktivieren.');
+    if (!('Magnetometer' in window)) throw new Error('Chrome gibt das Handy-Magnetometer erst nach einer einmaligen Freischaltung her: In die Adresszeile chrome://flags/#enable-generic-sensor-extra-classes eingeben, „Generic Sensor Extra Classes“ auf „Enabled“ stellen und Chrome neu starten.');
+    try { const p = await navigator.permissions.query({ name: 'magnetometer' }); if (p.state === 'denied') throw new Error('Der Zugriff auf Bewegungssensoren ist für diese Seite gesperrt (Chrome → Website-Einstellungen → Bewegungssensoren).'); } catch (e) { if (/gesperrt/.test(e.message)) throw e; }
     const s = this.sensor = new Magnetometer({ frequency: 20 });
     await new Promise((res, rej) => {
       s.addEventListener('error', e => rej(new Error('Magnetometer: ' + e.error.message)), { once: true });
@@ -394,7 +541,7 @@ function stop(reason) {
   active = null; S.running = false; S.event = null; S.level = 0; S.sig = 0; S.cur = null;
   setAlarm(false);
   setChip(reason || 'Nicht verbunden', reason ? 'err' : '');
-  $('connect').textContent = 'Sensor verbinden'; $('connect').classList.add('primary');
+  $('connect').textContent = startLabel(); $('connect').classList.add('primary');
   $('zero').disabled = true;
   wake.off();
 }
@@ -488,6 +635,8 @@ function draw(ts) {
   $('sBase').textContent = live ? fmt(S.baseMag) : '–';
   $('sFinds').textContent = finds.length;
 
+  if ($('tab-tracker').hidden) return;   // Radar nur zeichnen, wenn sichtbar
+
   // Radar
   let d = fit(radar); const w = radar.width, h = radar.height, cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 4 * d;
   rctx.clearRect(0, 0, w, h);
@@ -550,7 +699,15 @@ function bind(id, key, out, after) {
 bind('thr', 'thr', 'oThr'); bind('vol', 'vol', 'oVol', () => audio.setVol());
 bind('mode', 'mode', null, () => { if (S.running) startZero(); });
 bind('auto', 'auto'); bind('sound', 'sound'); bind('fanfare', 'fanfare'); bind('vib', 'vib');
-bind('source', 'source', null, () => { if (S.running) stop(); });
+const startLabel = () => cfg.source === 'demo' ? 'Demo starten' : cfg.source === 'phone' ? 'Handy-Sensor starten' : 'Sensor verbinden';
+function showSource() {
+  document.querySelectorAll('#srcSeg button').forEach(b => b.classList.toggle('on', cfg.source.startsWith(b.dataset.src)));
+  $('source').value = cfg.source;
+  if (!S.running) $('connect').textContent = startLabel();
+}
+bind('source', 'source', null, () => { if (S.running) stop(); showSource(); });
+document.querySelectorAll('#srcSeg button').forEach(b => b.onclick = () => { if (S.running) stop(); cfg.source = b.dataset.src; saveCfg(); banner(''); showSource(); });
+showSource();
 
 $('connect').onclick = () => S.running ? stop() : start();
 $('zero').onclick = () => { audio.unlock(); startZero(); };
@@ -567,7 +724,7 @@ $('csv').onclick = () => {
 renderFinds();
 
 if (!navigator.bluetooth) banner('Dieser Browser unterstützt kein Web Bluetooth – der PASCO-Sensor lässt sich nur mit Chrome auf Android verbinden. Die Demo funktioniert trotzdem (Einstellungen → Datenquelle).');
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
+<script src="buch.js"></script>
 </body>
 </html>

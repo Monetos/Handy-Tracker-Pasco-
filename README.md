@@ -6,10 +6,14 @@ Geigerzähler-Sound, Alarm und Fundliste.
 
 ## Installieren (einmalig)
 
-1. Auf GitHub: **Settings → Pages → Source: „Deploy from a branch“**, Branch wählen, Ordner `/ (root)`, speichern.
-   (GitHub Pages braucht bei kostenlosen Konten ein öffentliches Repository.)
-2. Nach ca. einer Minute die angezeigte Adresse (`https://<name>.github.io/<repo>/`) in **Chrome auf dem Handy** öffnen.
-3. Chrome-Menü ⋮ → **„App installieren“ / „Zum Startbildschirm hinzufügen“**. Danach startet die App wie jede andere und läuft auch offline.
+Die App ist unter **https://monetos.github.io/Handy-Tracker-Pasco-/** veröffentlicht (Branch `gh-pages`).
+In Chrome auf dem Handy öffnen → Menü ⋮ → **„App installieren“**. Danach läuft sie auch offline.
+
+## Updates
+
+- Die App prüft bei jedem Start, ob eine neue Version online ist, und zeigt dann oben „Neue Version verfügbar – Jetzt aktualisieren“. Manuell: *Mehr → App & Update → Nach Update suchen*.
+- Einträge, Fotos und Einstellungen bleiben beim Update erhalten.
+- Für Entwickler: Änderung machen, in `version.js` die Versionsnummer erhöhen, auf den Branch `gh-pages` pushen – fertig.
 
 ## Benutzen
 
@@ -19,6 +23,20 @@ Geigerzähler-Sound, Alarm und Fundliste.
 
 Betriebsarten: **Suchen** (Sensor wird bewegt, drehunabhängig) und **Wache** (Sensor liegt still, z. B. an einer Ablage – empfindlicher).
 Ohne Sensor lässt sich alles über *Einstellungen → Datenquelle → Demo* ausprobieren.
+
+## Einzugsbuch
+
+- **Einziehen:** Name, Klasse, Zeit, Lehrkraft, Notiz und Fotos des Geräts erfassen. Die App zeigt sofort, der wievielte Einzug im Schuljahr es ist:
+  1. Einzug → Verwarnung, Verwahrung im Lehrerzimmer, Abholung nach Unterrichtsschluss durch die Schülerin / den Schüler;
+  ab dem 2. Einzug → Verwahrung im Lehrerzimmer, Abholung nur durch die Eltern.
+- **Buch:** Übersicht je Schuljahr (Beginn 1. August) mit Zähler pro Schüler/in, Abhol-Vermerk, CSV-Export und Backup.
+- **Buchseite scannen:** Seite fotografieren, erkannte Zeilen gegen das Foto prüfen, übernehmen. Die Erkennung auf dem Gerät liest nur Druckschrift; für Handschrift gibt es unter *Mehr* eine KI-Erkennung mit eigenem Anthropic-API-Schlüssel (das Foto wird dann an Anthropic gesendet – vorher datenschutzrechtlich klären).
+- Alle Daten liegen ausschließlich lokal auf dem Gerät.
+
+## Handy-Sensor statt PASCO
+
+Auf dem Tracker „Handy-Sensor“ wählen. Chrome gibt das Magnetometer erst frei, nachdem unter
+`chrome://flags/#enable-generic-sensor-extra-classes` „Enabled“ gewählt und Chrome neu gestartet wurde.
 
 ## Grenzen
 
