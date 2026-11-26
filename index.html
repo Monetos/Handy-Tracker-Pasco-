@@ -94,6 +94,8 @@
   .list { list-style: none; margin: 10px 0 0; padding: 0; }
   .list li { display: flex; align-items: center; gap: 10px; padding: 12px; margin-top: 6px; background: var(--panel);
     border: 1px solid var(--line); border-radius: 12px; }
+  .thumb { width: 56px; height: 56px; flex: none; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line); display: grid; place-items: center; font-size: 22px; overflow: hidden; opacity: .9; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
   .list .who { flex: 1; min-width: 0; } .list .who b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .list .who small { color: var(--dim); }
   .badge { font-size: 12px; font-weight: 700; padding: 5px 9px; border-radius: 99px; background: #2b2206; color: var(--warn); border: 1px solid var(--warn); white-space: nowrap; }
@@ -169,7 +171,7 @@
 </section>
 
 <section id="tab-einzug" class="tab" hidden>
-  <h2>Handy einziehen</h2>
+  <h2 id="eTitle">Handy einziehen</h2>
   <label class="f">Schüler/in
     <input id="eName" type="text" list="dlNames" autocomplete="off" autocapitalize="words" placeholder="Vorname Nachname">
   </label>
@@ -192,7 +194,8 @@
     <button class="big" id="ePhotoBtn">📷 Foto vom Handy</button>
     <input id="ePhotoIn" type="file" accept="image/*" capture="environment" hidden>
   </div>
-  <div class="row"><button class="big primary" id="eSave">Einzug speichern</button></div>
+  <p class="hint">Das Foto erscheint später im Buch neben dem Namen – so lässt sich das Gerät im Lehrerzimmer der Schülerin bzw. dem Schüler zuordnen.</p>
+  <div class="row"><button class="big" id="eCancel" hidden>Abbrechen</button><button class="big primary" id="eSave">Einzug speichern</button></div>
 </section>
 
 <section id="tab-buch" class="tab" hidden>
@@ -206,6 +209,7 @@
     <div class="stat"><b id="bStud">0</b><small>Schüler/innen</small></div>
     <div class="stat"><b id="bOpen">0</b><small>noch verwahrt</small></div>
   </div>
+  <label class="check"><input id="bOnlyOpen" type="checkbox"> Nur Handys, die noch im Lehrerzimmer liegen</label>
   <ul id="students" class="list"></ul>
   <p id="noStud" class="hint">Noch keine Einträge in diesem Schuljahr.</p>
   <div class="row"><button class="big" id="scanBtn">📖 Buchseite scannen</button></div>

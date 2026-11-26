@@ -61,10 +61,13 @@ async function shrink(file, max = 1600, q = 0.8) {
 const toDataUrl = blob => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
 
 // ---------- Formular „Einziehen“ ----------
-let formPhotos = [];
+let formPhotos = [], editId = null;   // editId: Eintrag, der gerade bearbeitet wird
 const localIso = t => { const d = new Date(t - new Date(t).getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
 function initForm(reset) {
-  if (reset) { $('eName').value = $('eKlasse').value = $('eNote').value = ''; formPhotos = []; renderFormPhotos(); }
+  if (reset) { $('eName').value = $('eKlasse').value = $('eNote').value = ''; formPhotos = []; editId = null; renderFormPhotos(); }
+  $('eTitle').textContent = editId ? 'Eintrag bearbeiten' : 'Handy einziehen';
+  $('eSave').textContent = editId ? 'Änderungen speichern' : 'Einzug speichern';
+  $('eCancel').hidden = !editId;
   if (reset || !$('eTime').value) $('eTime').value = localIso(Date.now());
   if (!$('eBy').value) $('eBy').value = cfg.teacher || '';
   const names = new Map(entries.map(e => [keyOf(e.name, e.klasse), e]));
@@ -75,7 +78,7 @@ function showRule() {
   const name = $('eName').value.trim(), box = $('eRule');
   if (name.length < 2) { box.hidden = true; return; }
   const t = $('eTime').value ? new Date($('eTime').value).getTime() : Date.now();
-  const prev = forStudent(keyOf(name, $('eKlasse').value), schoolYear(t)), r = rule(prev.length + 1);
+  const prev = forStudent(keyOf(name, $('eKlasse').value), schoolYear(t)).filter(e => editId ? e.id !== editId && e.t < t : true), r = rule(prev.length + 1);
   box.hidden = false; box.className = 'rule ' + r.cls;
   box.replaceChildren(el('b', { textContent: r.title }), r.text + (prev.length ? ` Bisher im Schuljahr ${syLabel(schoolYear(t))}: ${prev.map(e => new Date(e.t).toLocaleDateString('de-DE')).join(', ')}.` : ''));
 }
@@ -94,14 +97,29 @@ $('eSave').onclick = async () => {
   const name = normName($('eName').value), klasse = $('eKlasse').value.trim();
   if (name.length < 2) { alert('Bitte den Namen eintragen.'); $('eName').focus(); return; }
   const t = $('eTime').value ? new Date($('eTime').value).getTime() : Date.now();
-  const entry = { id: uid(), name, klasse, t, by: $('eBy').value.trim(), note: $('eNote').value.trim(), photos: [], picked: null, src: 'app' };
+  if (!klasse && !confirm('Es ist keine Klasse eingetragen. Trotzdem speichern?')) { $('eKlasse').focus(); return; }
+  const old = editId && entries.find(e => e.id === editId);
+  const entry = old || { id: uid(), photos: [], picked: null, src: 'app' };
+  Object.assign(entry, { name, klasse, t, by: $('eBy').value.trim(), note: $('eNote').value.trim() });
+  for (const id of entry.photos) await DB.del('photos', id);
+  entry.photos = [];
   for (const blob of formPhotos) { const id = uid(); await DB.put('photos', { id, blob }); entry.photos.push(id); }
-  await DB.put('entries', entry); entries.push(entry);
+  await DB.put('entries', entry);
+  if (old) { initForm(true); bookYear = schoolYear(t); showTab('buch'); openStudent(keyOf(name, klasse)); return; }
+  entries.push(entry);
   cfg.teacher = entry.by; saveCfg();
   const r = rule(forStudent(keyOf(name, klasse), schoolYear(t)).length);
   initForm(true);
   alert(`Gespeichert.\n\n${name}${klasse ? ' (' + klasse + ')' : ''}\n${r.title}\n${r.text}`);
 };
+
+$('eCancel').onclick = () => { initForm(true); showTab('buch'); };
+async function editEntry(e) {
+  editId = e.id; formPhotos = [];
+  for (const id of e.photos) { const p = await DB.get('photos', id); if (p) formPhotos.push(p.blob); }
+  $('eName').value = e.name; $('eKlasse').value = e.klasse; $('eTime').value = localIso(e.t); $('eBy').value = e.by; $('eNote').value = e.note;
+  renderFormPhotos(); $('sheet').hidden = true; showTab('einzug');
+}
 
 // ---------- Buch ----------
 let bookYear = schoolYear(Date.now());
@@ -114,17 +132,25 @@ function renderBook() {
   $('bTotal').textContent = inYear.length; $('bStud').textContent = groups.size; $('bOpen').textContent = inYear.filter(e => !e.picked).length;
   const rows = [...groups.entries()].map(([k, list]) => ({ k, list, last: Math.max(...list.map(e => e.t)) }))
     .filter(g => !q || (g.list[0].name + ' ' + g.list[0].klasse).toLowerCase().includes(q))
+    .filter(g => !$('bOnlyOpen').checked || g.list.some(e => !e.picked))
     .sort((a, b) => b.list.length - a.list.length || b.last - a.last);
   $('noStud').hidden = rows.length > 0;
   $('students').replaceChildren(...rows.map(g => {
     const r = rule(g.list.length), open = g.list.some(e => !e.picked);
-    return el('li', { onclick: () => openStudent(g.k) },
-      el('div', { className: 'who' }, el('b', { textContent: g.list[0].name }), el('small', { textContent: `${g.list[0].klasse || 'ohne Klasse'} · zuletzt ${new Date(g.last).toLocaleDateString('de-DE')}${open ? ' · verwahrt' : ''}` })),
+    // Foto des zuletzt eingezogenen (möglichst noch verwahrten) Geräts, damit man es im Lehrerzimmer zuordnen kann
+    const byNew = [...g.list].sort((a, b) => b.t - a.t), shot = byNew.find(e => !e.picked && e.photos.length) || byNew.find(e => e.photos.length);
+    const thumb = el('div', { className: 'thumb', textContent: shot ? '' : '📱' });
+    if (shot) DB.get('photos', shot.photos[0]).then(p => { if (p) thumb.append(el('img', { src: URL.createObjectURL(p.blob), alt: 'Foto des Geräts' })); });
+    return el('li', { onclick: () => openStudent(g.k) }, thumb,
+      el('div', { className: 'who' }, el('b', { textContent: g.list[0].name }),
+        el('small', { textContent: `Klasse ${g.list[0].klasse || '–'} · ${dt(g.last)}` }),
+        el('small', { textContent: open ? 'im Lehrerzimmer verwahrt' : 'abgeholt', style: open ? 'display:block;color:var(--warn)' : 'display:block' })),
       el('span', { className: 'badge ' + r.cls, textContent: r.short }));
   }));
 }
 $('bYear').onchange = e => { bookYear = +e.target.value; renderBook(); };
 $('bSearch').oninput = renderBook;
+$('bOnlyOpen').onchange = renderBook;
 
 function openSheet(title) { $('sheetTitle').textContent = title; $('sheetBody').replaceChildren(); $('sheet').hidden = false; return $('sheetBody'); }
 $('sheetClose').onclick = () => { $('sheet').hidden = true; renderBook(); };
@@ -137,6 +163,7 @@ async function openStudent(key) {
   for (const [i, e] of list.entries()) {
     const ri = rule(i + 1), card = el('div', { className: 'card' });
     card.append(el('div', { className: 't' }, el('span', { textContent: `${i + 1}. Einzug · ${dt(e.t)}` }), el('span', { className: 'badge ' + (e.picked ? 'ok' : ri.cls), textContent: e.picked ? 'abgeholt' : 'verwahrt' })));
+    card.append(el('div', { textContent: `Klasse: ${e.klasse || '–'}` }));
     card.append(el('div', { textContent: `Eingezogen von: ${e.by || '–'}${e.src === 'buch' ? ' · aus dem Buch übernommen' : ''}` }));
     if (e.note) card.append(el('div', { textContent: 'Notiz: ' + e.note }));
     card.append(el('div', { textContent: e.picked ? `Abgeholt am ${dt(e.picked.t)} durch ${e.picked.who}` : 'Abholung: ' + (i ? 'nur durch Eltern' : 'nach Unterrichtsschluss durch Schüler/in') }));
@@ -150,7 +177,7 @@ async function openStudent(key) {
       else { const who = prompt('Abgeholt durch:', i ? 'Eltern' : 'Schüler/in'); if (who == null) return; e.picked = { t: Date.now(), who: who.trim() || '–' }; }
       await DB.put('entries', e); openStudent(key);
     } }));
-    acts.append(el('button', { className: 'link', textContent: 'Notiz ändern', async onclick() { const v = prompt('Notiz:', e.note); if (v == null) return; e.note = v.trim(); await DB.put('entries', e); openStudent(key); } }));
+    acts.append(el('button', { className: 'link', textContent: e.photos.length ? 'Bearbeiten' : 'Bearbeiten / Foto hinzufügen', onclick: () => editEntry(e) }));
     acts.append(el('button', { className: 'link', textContent: 'Löschen', style: 'color:var(--hot)', async onclick() {
       if (!confirm('Diesen Eintrag endgültig löschen?')) return;
       for (const id of e.photos) await DB.del('photos', id);
